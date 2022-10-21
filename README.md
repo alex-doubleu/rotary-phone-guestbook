@@ -1,2 +1,2 @@
-# rotary-phone-recorder
-Simple C++ program that uses a Raspberry Pi to record and playback audio from a rotary telephone
+# rotary-phone-guestbook
+Simple Python app for the Raspberry Pi that records and plays audio from a rotary telephone. It monitors the phone's hook switch via GPIO pin #17 to determine when to play/record audio and when to stop/save recording.
