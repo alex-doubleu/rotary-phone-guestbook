@@ -1,12 +1,13 @@
-import threading
 import logging
 import signal
 import sounddevice as sd
 import soundfile as sf
 import numpy
 from gpiozero import Button
+from queue import Queue
+from datetime import datetime
 
-def callback(outdata, frames, *_):
+def output_callback(outdata, frames, *_):
     global current_frame
 
     chunksize = min(len(data) - current_frame, frames)
@@ -15,10 +16,26 @@ def callback(outdata, frames, *_):
     if chunksize < frames:
         outdata[chunksize:] = 0
 
-        logger.info('audio stopping')
+        logger.info('audio stopping, recording started')
+        input_stream.start()
+
         raise sd.CallbackStop()
 
     current_frame += chunksize
+
+def input_callback(indata, *_):
+    input_queue.put(indata.copy())
+
+def save_recording():
+    # write queue data to file via soundfile object
+    file_name = f'../output/{ datetime.now().strftime("%Y%m%d_%H%M%S") }.wav'
+    output_file = sf.SoundFile(file=file_name, mode='x', samplerate=int(input_stream.samplerate), channels=1)
+    with output_file:
+        logger.info('saving recording')
+        while not input_queue.empty():
+            data = input_queue.get()
+            output_file.write(data)
+        logger.info('recording saved')
 
 def get_tone_samples(sample_rate):
     duration = 0.75
@@ -34,12 +51,16 @@ def get_tone_samples(sample_rate):
 def phone_picked_up():
     logger.info('phone picked up')
 
-    stream.start()
+    output_stream.start()
 
 def phone_hung_up():
     logger.info('phone hung up')
 
-    stream.abort()
+    output_stream.abort()
+    input_stream.abort()
+
+    if not input_queue.empty():
+        save_recording()
 
     global current_frame
     current_frame = 0
@@ -65,6 +86,9 @@ if __name__ == '__main__':
     # append the tone samples to the prompt audio
     data = numpy.append(data, get_tone_samples(sample_rate), axis=0)
 
-    stream = sd.OutputStream(samplerate=sample_rate, callback=callback)
+    output_stream = sd.OutputStream(samplerate=sample_rate, device=0, channels=1, callback=output_callback)
+    input_stream = sd.InputStream(device=1, channels=1, callback=input_callback)
+
+    input_queue = Queue()
 
     main()
