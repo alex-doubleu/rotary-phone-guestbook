@@ -16,7 +16,7 @@ def output_callback(outdata, frames, *_):
     if chunksize < frames:
         outdata[chunksize:] = 0
 
-        logger.info('audio stopping, recording started')
+        logger.info('audio stopping')
         input_stream.start()
 
         raise sd.CallbackStop()
@@ -24,9 +24,16 @@ def output_callback(outdata, frames, *_):
     current_frame += chunksize
 
 def input_callback(indata, *_):
+    if input_queue.empty():
+        logger.info('recording started')
+
     input_queue.put(indata.copy())
 
 def save_recording():
+    if input_queue.empty():
+        logger.warning('input queue was empty when trying to save recording')
+        return
+
     # write queue data to file via soundfile object
     file_name = f'../output/{ datetime.now().strftime("%Y%m%d_%H%M%S") }.wav'
     output_file = sf.SoundFile(file=file_name, mode='x', samplerate=int(input_stream.samplerate), channels=1)
@@ -86,8 +93,8 @@ if __name__ == '__main__':
     # append the tone samples to the prompt audio
     data = numpy.append(data, get_tone_samples(sample_rate), axis=0)
 
-    output_stream = sd.OutputStream(samplerate=sample_rate, device=0, channels=1, callback=output_callback)
     input_stream = sd.InputStream(device=1, channels=1, callback=input_callback)
+    output_stream = sd.OutputStream(samplerate=sample_rate, device=0, channels=1, callback=output_callback, finished_callback=input_stream.start)
 
     input_queue = Queue()
 
