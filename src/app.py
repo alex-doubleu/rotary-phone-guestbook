@@ -10,6 +10,9 @@ from datetime import datetime
 def output_callback(outdata, frames, *_):
     global current_frame
 
+    if current_frame == 0:
+        logger.info('playing prompt')
+
     chunksize = min(len(data) - current_frame, frames)
     outdata[:chunksize] = data[current_frame:current_frame + chunksize]
 
@@ -53,11 +56,15 @@ def get_tone_samples(sample_rate):
     silent_samples = 0 * numpy.arange(sample_rate * 0.25)
     tone_samples = amplitude * numpy.sin(2 * numpy.pi * sample_size * freq / sample_rate)
     
-    return numpy.append(silent_samples, tone_samples).reshape(-1, 1)
+    samples = numpy.append(silent_samples, tone_samples)
+
+    # add a couple extra samples so that the very end of the tone doesn't make it into the recording
+    return numpy.append(samples, 0 * numpy.arange(sample_rate * 0.075)).reshape(-1, 1)
 
 def phone_picked_up():
     logger.info('phone picked up')
 
+    sd.sleep(1000)
     output_stream.start()
 
 def phone_hung_up():
@@ -72,12 +79,16 @@ def phone_hung_up():
     global current_frame
     current_frame = 0
 
+    logger.info('waiting for handset to be lifted')
+
 def main():
     try:
         hook_switch = Button(17, bounce_time=0.2)
         
         hook_switch.when_pressed = phone_picked_up
         hook_switch.when_released = phone_hung_up
+
+        logger.info('waiting for handset to be lifted')
 
         signal.pause()
     except KeyboardInterrupt:
@@ -86,6 +97,8 @@ def main():
 if __name__ == '__main__':
     logging.basicConfig(format='[%(levelname)s] %(asctime)s - %(message)s', level=logging.INFO)
     logger = logging.getLogger()
+
+    logger.info('initializing audio streams')
 
     current_frame = 0
     data, sample_rate = sf.read('../audio/test_prompt.wav', always_2d=True)

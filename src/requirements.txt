@@ -1,4 +1,4 @@
-RPi.GPIO
 sounddevice
 soundfile
 numpy
+gpiozero
