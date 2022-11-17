@@ -101,7 +101,7 @@ if __name__ == '__main__':
     logger.info('initializing audio streams')
 
     current_frame = 0
-    data, sample_rate = sf.read('../audio/test_prompt.wav', always_2d=True)
+    data, sample_rate = sf.read('../audio/audio_prompt.wav', always_2d=True)
 
     # append the tone samples to the prompt audio
     data = numpy.append(data, get_tone_samples(sample_rate), axis=0)
