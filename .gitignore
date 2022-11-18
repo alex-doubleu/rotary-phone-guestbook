@@ -33,5 +33,6 @@
 bin/*
 
 output
+app.log
 
 .vscode
